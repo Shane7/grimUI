@@ -15,11 +15,163 @@ module Login {
 
     /* Server Selection Variables */
 
-    var servers = [
-        { name: 'localhost', host: 'localhost', isOnline: true, playerCounts: { arthurians: 0, tuathaDeDanann: 0, viking: 0, total: 0 } }
-    ];
+  
+    
+    class ServerPlayerCounts
+    {
+        Arthurians: number = 0;
+        TuathaDeDanann: number = 0;
+        Viking: number = 0;
 
-    var selectedServer = null;
+        get Total(): number
+        {
+            return this.Arthurians + this.TuathaDeDanann + this.Viking;
+        }
+
+        constructor(arthurians: number, tuathaDeDanann: number, viking: number)
+        {
+            this.Arthurians = arthurians;
+            this.TuathaDeDanann = tuathaDeDanann;
+            this.Viking = viking;
+        }
+
+ 
+    }
+
+    class Server {
+        Name: string;
+        Host: string;
+        IsOnline: boolean = false;
+
+        private PlayerCounts: ServerPlayerCounts = new ServerPlayerCounts(0, 0, 0);
+        private characters: any = null;
+        private races: any = null;
+
+        //Wrapping player counts so if the underlying class chages we don't break anyone who ref's then via the server class.
+        get Arthurians(): number {
+            return this.PlayerCounts.Arthurians;
+        }
+
+        get TuathaDeDanann(): number {
+            return this.PlayerCounts.TuathaDeDanann;
+        }
+
+        get Viking(): number {
+            return this.PlayerCounts.Viking;
+        }
+
+        get Total(): number {
+            return this.PlayerCounts.Total;
+        }
+
+        //TODO: create a characters object and convert this to a delay loading Array<Character>(), for now, I'll add this to be compatable with the current code...
+        get Characters(): any {
+            return this.characters;
+        }
+        //TODO: should be able to remove this when the characters are loaded by the server object
+        set Characters(characters: any) {
+            this.characters = characters;
+        }
+
+        //TODO: this needs the same delay load treatment as the characters list..
+        get Races(): any {
+            return this.races;
+        }
+        //TODO: should be able to remove this when the races are loaded by the server object
+        set Races(races: any) {
+            this.races = races;
+        }
+
+        /*
+        * Overloading constructors is a bit strange in typescript, you can only overload the sig, not he body
+        * The bottom most constructor appears to need to account for all possible parameters hence the ? on name and host
+        * the server data version is needed so I can build a class from and old-style server object. 
+        */
+        constructor(name: string, host: string);
+        constructor(serverData: any);
+        constructor(serverData: any, name?: string, host?: string) {
+            if (serverData) {
+                //assumming the right object was passed in
+                this.Name = serverData.name;
+                this.Host = serverData.host;
+                this.IsOnline = serverData.isOnline;
+
+                if (serverData.playerCounts) {
+                    this.PlayerCounts.Arthurians = (serverData.playerCounts.arthurians || 0);
+                    this.PlayerCounts.TuathaDeDanann = (serverData.playerCounts.tuathaDeDanann || 0);
+                    this.PlayerCounts.Viking = (serverData.playerCounts.viking || 0);
+                }
+            }
+            else {
+                this.Name = name;
+                this.Host = host;
+            }
+        }
+
+        UpdateAsync(updateCompleteCallback, eventData) {
+
+            var delay = 5000;
+
+            $.ajax({
+                type: 'GET',
+                url: Server.getServerApiUrl(this.Host) + '/game/players',
+                timeout: delay
+            }).done((data) => {
+                this.IsOnline = true;
+
+                this.PlayerCounts.Arthurians = (data.arthurians || 0);
+                this.PlayerCounts.TuathaDeDanann = (data.tuathaDeDanann || 0);
+                this.PlayerCounts.Viking = (data.vikings || 0);
+
+                if (updateCompleteCallback)
+                    updateCompleteCallback(this, eventData);
+                
+            }).fail(() => {
+                    this.IsOnline = false;
+
+                    if (updateCompleteCallback)
+                        updateCompleteCallback(this, eventData);
+                });
+        }
+
+        private static getServerApiUrl(host: string) {
+            return 'http://' + host + ':8000/api';
+        }
+
+        static GetAllAsync(completeCallback) {
+            var allServers = new Array<Server>();
+
+            $.ajax({
+                type: 'GET',
+                url: Server.getServerApiUrl('chat.camelotunchained.com') + '/game/servers',
+                timeout: 6000
+            }).done((data) => {
+
+                    var servers = [
+                        { name: 'localhost', host: 'localhost', isOnline: true, playerCounts: { arthurians: 0, tuathaDeDanann: 0, viking: 0, total: 0 } }
+                    ];
+
+                    servers = data;
+
+                    //alert(data);
+
+                    //I don't quit understand the magic of loading the original list, so I'll loop through turning old servers into the new server type
+                    //maybe someone can figure out how to go directly to a typed array?
+                    servers.forEach((server) => {
+                        allServers.push(new Server(server));
+                    });
+
+                if (completeCallback)
+                    completeCallback(allServers);
+
+            }).fail(Server.GetAllAsync);
+        }
+        
+    } 
+
+    var availableServers = new Array<Server>();
+
+    var selectedServer:Server = null;
 
     var serverTimeouts = [];
 
@@ -91,6 +243,8 @@ module Login {
             id: $selectedCharacter.data('character-id'),
             name: $selectedCharacter.data('character-name')
         };
+
+        alert('login with char id: ' + character.id + ' name: ' + character.name);
         $characterSelection.fadeOut(() => connect(character));
     });
 
@@ -138,19 +292,13 @@ module Login {
 
         showServerSelection();
 
-        getServers();
+        Server.GetAllAsync(serversRecieved)
     }
 
-    function getServers() {
-        $.ajax({
-            type: 'GET',
-            url: getServerApiUrl({ host: 'chat.camelotunchained.com' }) + '/game/servers',
-            timeout: 6000
-        }).done((data) => {
-            servers = data;
-
-            updateServerSelection();
-        }).fail(getServers);
+    function serversRecieved(allServers: Array<Server>)
+    {
+        availableServers = allServers;
+        updateServerSelection();
     }
 
     function hideModal(callback?) {
@@ -176,15 +324,16 @@ module Login {
     }
 
     function connect(character) {
-        if (_.isUndefined(selectedServer) || !_.isString(selectedServer.host)) {
+        if (_.isUndefined(selectedServer) || !_.isString(selectedServer.Host)) {
             showModal(createErrorModal('No server selected.'));
         } else if (_.isUndefined(character) || !_.isString(character.id)) {
             showModal(createErrorModal('No character selected.'));
         } else {
             if (cu.HasAPI()) {
-                cuAPI.Connect(selectedServer.host, character.id);
+                alert('connect: ' + selectedServer.Host + ' ' + character.id);
+                cuAPI.Connect(selectedServer.Host, character.id);
             } else {
-                showModal(createErrorModal('Connected to: ' + selectedServer.host + ' - character: ' + character.id));
+                showModal(createErrorModal('Connected to: ' + selectedServer.Host + ' - character: ' + character.id));
             }
         }
     }
@@ -197,13 +346,14 @@ module Login {
         return getSecureServerApiUrl(selectedServer);
     }
 
-    function getServerApiUrl(server) {
-        return 'http://' + server.host + ':8000/api';
+    //TODO remove this from the global scope if posible its in server now
+    function getServerApiUrl(server: Server) {
+        return 'http://' + server.Host + ':8000/api';
     }
 
-    function getSecureServerApiUrl(server) {
-        if (server.host === 'localhost') return getServerApiUrl(server);
-        return 'https://' + server.host + ':4443/api';
+    function getSecureServerApiUrl(server: Server) {
+        if (server.Host === 'localhost') return getServerApiUrl(server);
+        return 'https://' + server.Host + ':4443/api';
     }
 
     /* Server Selection Functions */
@@ -227,7 +377,7 @@ module Login {
 
         $tbody.empty();
 
-        servers.forEach((server) => {
+        availableServers.forEach((server) => {
             var row = createServerModalRow(server);
 
             row.$row.appendTo($tbody);
@@ -255,68 +405,61 @@ module Login {
 
         $table['$tfoot'] = $('<tfoot></tfoot>').appendTo($table);
 
-        servers.forEach((server) => {
+        availableServers.forEach((server) => {
             createServerModalRow(server).$row.appendTo($tbody);
         });
 
         return $container;
     }
 
-    function createServerModalRow(server) {
+    function createServerModalRow(server: Server) {
         var $row = $('<tr></tr>');
 
         $row[0].onclick = () => trySelectServer(server);
 
-        if (!server.isOnline) {
+        if (!server.IsOnline) {
             $row.addClass('offline');
         }
 
-        $('<td class="name">' + _.escape(server.name) + '</td>').appendTo($row);
+        $('<td class="name">' + _.escape(server.Name) + '</td>').appendTo($row);
 
         var $arthurians = $('<td class="arthurians">?</td>').appendTo($row);
         var $tdd = $('<td class="tdd">?</td>').appendTo($row);
         var $vikings = $('<td class="vikings">?</td>').appendTo($row);
         var $total = $('<td class="online">?</td>').appendTo($row);
 
-        if (server.playerCounts) {
-            $arthurians.text(server.playerCounts.arthurians);
-            $tdd.text(server.playerCounts.tuathaDeDanann);
-            $vikings.text(server.playerCounts.vikings);
-            $total.text(server.playerCounts.total);
-        }
+        $arthurians.text(server.Arthurians);
+        $tdd.text(server.TuathaDeDanann);
+        $vikings.text(server.Viking);
+        $total.text(server.Total);
+        
 
         return { $row: $row, $arthurians: $arthurians, $tdd: $tdd, $vikings: $vikings, $total: $total };
     }
 
-    function updateServerEntry(server, row) {
-        var start = new Date();
+    function updateServerEntry(server: Server, row) {
+        server.UpdateAsync(doUpdateServerEntry, row);
+    }
 
+    function doUpdateServerEntry(server: Server, row) {
+        var start = new Date(); //TODO this used to take into account how long the update took, prob should pass the start time in as well...
         var delay = 5000;
 
-        $.ajax({
-            type: 'GET',
-            url: getServerApiUrl(server) + '/game/players',
-            timeout: delay
-        }).done((data) => {
-            server.isOnline = true;
-
-            server.playerCounts = data;
-            server.playerCounts.total = (data.arthurians || 0) + (data.tuathaDeDanann || 0) + (data.vikings || 0);
-
+        if (server.IsOnline) {
             row.$row.removeClass('offline');
-            row.$arthurians.text(server.playerCounts.arthurians);
-            row.$tdd.text(server.playerCounts.tuathaDeDanann);
-            row.$vikings.text(server.playerCounts.vikings);
-            row.$total.text(server.playerCounts.total);
+            row.$arthurians.text(server.Arthurians);
+            row.$tdd.text(server.TuathaDeDanann);
+            row.$vikings.text(server.Viking);
+            row.$total.text(server.Total);
 
             if (!selectedServer) {
                 var elapsed = new Date().getTime() - start.getTime();
 
                 serverTimeouts.push(setTimeout(() => updateServerEntry(server, row), delay - elapsed));
             }
-        }).fail(() => {
-            server.isOnline = false;
-
+        }
+        else
+        {
             row.$row.addClass('offline');
             row.$arthurians.text('?');
             row.$tdd.text('?');
@@ -328,15 +471,15 @@ module Login {
 
                 serverTimeouts.push(setTimeout(() => updateServerEntry(server, row), delay - elapsed));
             }
-        });
+        }
     }
 
-    function trySelectServer(server) {
-        if (!server.isOnline) {
+    function trySelectServer(server: Server) {
+        if (!server.IsOnline) {
             return;
         }
 
-        var request = serverCharacterRequests[server.host];
+        var request = serverCharacterRequests[server.Host];
 
         if (!request) {
             var $tfoot = $serversModalContainer['$content']['$table']['$tfoot'];
@@ -352,7 +495,7 @@ module Login {
             var attempts = 0;
 
             var loadingInterval = setInterval(() => {
-                request = serverCharacterRequests[server.host];
+                request = serverCharacterRequests[server.Host];
 
                 if (request && request.readyState === 4) {
                 } else if (++attempts > 50) {
@@ -366,14 +509,14 @@ module Login {
 
             var delay = 5000;
 
-            serverCharacterRequests[server.host] = $.ajax({
+            serverCharacterRequests[server.Host] = $.ajax({
                 type: 'GET',
                 url: getSecureServerApiUrl(server) + '/characters?loginToken=' + loginToken,
                 timeout: delay
             }).done((data) => {
-                server.characters = data;
+                server.Characters = data;
 
-                serverCharacterRequests[server.host] = null;
+                serverCharacterRequests[server.Host] = null;
 
                 clearInterval(loadingInterval);
 
@@ -381,7 +524,7 @@ module Login {
 
                 selectServer(server);
             }).fail(() => {
-                serverCharacterRequests[server.host] = null;
+                serverCharacterRequests[server.Host] = null;
 
                 clearInterval(loadingInterval);
 
@@ -390,12 +533,13 @@ module Login {
         }
     }
 
-    function selectServer(server) {
+    function selectServer(server: Server) {
         serverTimeouts.forEach(timeout => clearTimeout(timeout));
         serverTimeouts = [];
 
-        selectedServer = servers.filter((s) => {
-            return s.name === server.name;
+        //selectedServer = servers.filter((s) => {
+        selectedServer = availableServers.filter((s) => {
+            return s.Name === server.Name;
         })[0];
 
         if (_.isUndefined(selectedServer)) {
@@ -403,7 +547,7 @@ module Login {
         }
 
         hideModal(() => {
-            if (selectedServer.characters && selectedServer.characters.length) {
+            if (selectedServer.Characters && selectedServer.Characters.length) {
                 showCharacterSelect();
             } else {
                 showCharacterCreationPage();
@@ -432,7 +576,7 @@ module Login {
 
         $selectedCharacter = null;
 
-        selectedServer.characters.forEach((character, index) => {
+        selectedServer.Characters.forEach((character, index) => {
             var raceCssClass;
 
             try {
@@ -456,7 +600,7 @@ module Login {
             }
         });
 
-        if (selectedServer.characters.length > 1) {
+        if (selectedServer.Characters.length > 1) {
             $previousButton.fadeIn();
             $nextButton.fadeIn();
         }
@@ -465,7 +609,7 @@ module Login {
     }
 
     function findRaceCssClass(raceValue) {
-        var race = selectedServer.races.filter(r => r.value === raceValue)[0];
+        var race = selectedServer.Races.filter(r => r.value === raceValue)[0];
         if (!race) {
             throw new Error('Race ' + raceValue + ' does not exist');
         }
@@ -539,7 +683,7 @@ module Login {
 
                 var $previous = getPreviousCharacter();
 
-                selectedServer.characters.splice($selectedCharacter.index(), 1);
+                selectedServer.Characters.splice($selectedCharacter.index(), 1);
 
                 $selectedCharacter.remove();
 
@@ -585,7 +729,7 @@ module Login {
             url: getServerApiUrl(selectedServer) + '/game/races',
             timeout: delay
         }).done((data) => {
-            selectedServer.races = data;
+            selectedServer.Races = data;
 
             serverRacesRequest = null;
 
@@ -608,20 +752,20 @@ module Login {
 
         $characterCreationBottom.fadeOut();
 
-        if (!selectedServer.races) {
+        if (!selectedServer.Races) {
             getRaces(() => selectRealm(realm, true));
             return;
         }
 
         $characterCreationRealms.animate({ 'top': '0%' }, () => {
             $characterCreationRaces.fadeOut().promise().done(() => {
-                var allRaceCssClasses = selectedServer.races.map(r => getRaceCssClass(r)).join(' ');
+                var allRaceCssClasses = selectedServer.Races.map(r => getRaceCssClass(r)).join(' ');
 
                 $characterCreationRaces.removeClass('selected ' + allRaceCssClasses);
 
                 var racesCount = 0;
 
-                selectedServer.races.forEach(race => {
+                selectedServer.Races.forEach(race => {
                     if (race.faction.name === realm) {
                         var raceCssClass = getRaceCssClass(race);
 
