@@ -244,7 +244,6 @@ module Login {
             name: $selectedCharacter.data('character-name')
         };
 
-        alert('login with char id: ' + character.id + ' name: ' + character.name);
         $characterSelection.fadeOut(() => connect(character));
     });
 
@@ -330,7 +329,6 @@ module Login {
             showModal(createErrorModal('No character selected.'));
         } else {
             if (cu.HasAPI()) {
-                alert('connect: ' + selectedServer.Host + ' ' + character.id);
                 cuAPI.Connect(selectedServer.Host, character.id);
             } else {
                 showModal(createErrorModal('Connected to: ' + selectedServer.Host + ' - character: ' + character.id));
