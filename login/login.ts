@@ -108,6 +108,7 @@ module Login {
             }
         }
 
+        //Callback sig example: callback(server: Server, data: any) where data is the eventData that was passed in to UpdateAsync
         UpdateAsync(updateCompleteCallback, eventData) {
 
             var delay = 5000;
@@ -138,6 +139,7 @@ module Login {
             return 'http://' + host + ':8000/api';
         }
 
+        //Callback sig example: callback(allServers: Array<Server>), the callback function is handed the list of servers
         static GetAllAsync(completeCallback) {
             var allServers = new Array<Server>();
 
