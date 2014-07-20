@@ -211,8 +211,6 @@ module Login {
     function showServerSelection() {
         selectedServer = null;
 
-        updateBackground(''); //cause the default bg to load;
-
         $characterSelection.fadeOut(() => {
             if (!$serversModalContainer) {
                 $serversModalContainer = createServersModal();
@@ -447,7 +445,7 @@ module Login {
                 raceCssClass = getRaceCssClass('Tuatha');
             }
 
-            var $character = $('<li class="character" data-character-id="' + character.id + '" data-character-name="' + _.escape(character.name) + '" data-character-realm="' + character.race.faction.name + '"></li>').appendTo($characters)
+            var $character = $('<li class="character" data-character-id="' + character.id + '" data-character-name="' + _.escape(character.name) + '"></li>').appendTo($characters);
 
             var $portrait = $('<div class="' + raceCssClass + '"></div>').css('background', getRaceBackgroundStyle(raceCssClass)).appendTo($character);
 
@@ -463,7 +461,6 @@ module Login {
             $nextButton.fadeIn();
         }
 
-        updateBackground($selectedCharacter.data('character-realm'));
         $characterSelection.fadeIn();
     }
 
@@ -489,7 +486,6 @@ module Login {
         } else {
             $selectedCharacter.fadeOut(() => {
                 $selectedCharacter = $nextSelectedCharacter.fadeIn();
-                updateBackground($selectedCharacter.data('character-realm'));
             });
         }
     }
@@ -599,26 +595,10 @@ module Login {
         }).fail(getRaces);
     }
 
-    function updateBackground(selectedRealm)
-    {
-        var bgName = 'bg.jpg';
-
-        if (realms[0] == selectedRealm)
-            bgName = 'tddbkg.jpg';
-        else if (realms[1] == selectedRealm)
-            bgName = 'vikingbkg.jpg';
-        else if (realms[2] == selectedRealm)
-            bgName = 'arthurianbkg.jpg';
-
-        $('html').css('background-image', 'url(../images/login/' + bgName + ')');
-    }
-
     function selectRealm(realm, isForced) {
         if (selectedRealm === realm && !isForced) return;
 
         selectedRealm = realm;
-
-        updateBackground(selectedRealm);
 
         selectedRace = null;
 
