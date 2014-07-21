@@ -108,9 +108,9 @@ module Login {
             }
         }
 
-        //Callback sig example: callback(server: Server, data: any) where data is the eventData that was passed in to UpdateAsync
+        //Callback sig example: callback(server: Server, data: any, updateStartTime: Date) where data is the eventData that was passed in
         UpdateAsync(updateCompleteCallback, eventData) {
-
+            var start = new Date();
             var delay = 5000;
 
             $.ajax({
@@ -125,13 +125,13 @@ module Login {
                 this.PlayerCounts.Viking = (data.vikings || 0);
 
                 if (updateCompleteCallback)
-                    updateCompleteCallback(this, eventData);
+                    updateCompleteCallback(this, eventData, start);
                 
             }).fail(() => {
                     this.IsOnline = false;
 
                     if (updateCompleteCallback)
-                        updateCompleteCallback(this, eventData);
+                        updateCompleteCallback(this, eventData, start);
                 });
         }
 
@@ -441,8 +441,7 @@ module Login {
         server.UpdateAsync(doUpdateServerEntry, row);
     }
 
-    function doUpdateServerEntry(server: Server, row) {
-        var start = new Date(); //TODO this used to take into account how long the update took, prob should pass the start time in as well...
+    function doUpdateServerEntry(server: Server, row, updateStartTime: Date) {
         var delay = 5000;
 
         if (server.IsOnline) {
@@ -453,7 +452,7 @@ module Login {
             row.$total.text(server.Total);
 
             if (!selectedServer) {
-                var elapsed = new Date().getTime() - start.getTime();
+                var elapsed = new Date().getTime() - updateStartTime.getTime();
 
                 serverTimeouts.push(setTimeout(() => updateServerEntry(server, row), delay - elapsed));
             }
@@ -467,7 +466,7 @@ module Login {
             row.$total.text('?');
 
             if (!selectedServer) {
-                var elapsed = new Date().getTime() - start.getTime();
+                var elapsed = new Date().getTime() - updateStartTime.getTime();
 
                 serverTimeouts.push(setTimeout(() => updateServerEntry(server, row), delay - elapsed));
             }
