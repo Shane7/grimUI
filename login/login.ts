@@ -17,69 +17,50 @@ module Login {
 
   
     
-    class ServerPlayerCounts
-    {
-        Arthurians: number = 0;
-        TuathaDeDanann: number = 0;
-        Viking: number = 0;
-
-        get Total(): number
-        {
-            return this.Arthurians + this.TuathaDeDanann + this.Viking;
-        }
-
-        constructor(arthurians: number, tuathaDeDanann: number, viking: number)
-        {
-            this.Arthurians = arthurians;
-            this.TuathaDeDanann = tuathaDeDanann;
-            this.Viking = viking;
-        }
-
- 
-    }
-
-    class Server {
-        Name: string;
-        Host: string;
-        IsOnline: boolean = false;
-
-        private PlayerCounts: ServerPlayerCounts = new ServerPlayerCounts(0, 0, 0);
-        private characters: any = null;
-        private races: any = null;
-
-        //Wrapping player counts so if the underlying class chages we don't break anyone who ref's then via the server class.
-        get Arthurians(): number {
-            return this.PlayerCounts.Arthurians;
-        }
-
-        get TuathaDeDanann(): number {
-            return this.PlayerCounts.TuathaDeDanann;
-        }
-
-        get Viking(): number {
-            return this.PlayerCounts.Viking;
-        }
+    class serverPlayerCounts {
+        arthurians: number = 0;
+        tuathaDeDanann: number = 0;
+        vikings: number = 0;
 
         get Total(): number {
-            return this.PlayerCounts.Total;
+            return this.arthurians + this.tuathaDeDanann + this.vikings;
         }
+
+        constructor(arthurians: number, tuathaDeDanann: number, vikings: number) {
+            this.arthurians = arthurians;
+            this.tuathaDeDanann = tuathaDeDanann;
+            this.vikings = vikings;
+        }
+    }
+
+    class server {
+        name: string;
+        host: string;
+        isOnline: boolean = false;
 
         //TODO: create a characters object and convert this to a delay loading Array<Character>(), for now, I'll add this to be compatable with the current code...
-        get Characters(): any {
-            return this.characters;
-        }
-        //TODO: should be able to remove this when the characters are loaded by the server object
-        set Characters(characters: any) {
-            this.characters = characters;
+        characters: any = null;
+        //TODO: this needs the same delay load treatment as the characters list..
+        races: any = null;
+
+        private PlayerCounts: serverPlayerCounts = new serverPlayerCounts(0, 0, 0);
+        
+
+        //Wrapping player counts so if the underlying class chages we don't break anyone who ref's then via the server class.
+        get arthurians(): number {
+            return this.PlayerCounts.arthurians;
         }
 
-        //TODO: this needs the same delay load treatment as the characters list..
-        get Races(): any {
-            return this.races;
+        get tuathaDeDanann(): number {
+            return this.PlayerCounts.tuathaDeDanann;
         }
-        //TODO: should be able to remove this when the races are loaded by the server object
-        set Races(races: any) {
-            this.races = races;
+
+        get vikings(): number {
+            return this.PlayerCounts.vikings;
+        }
+
+        get total(): number {
+            return this.PlayerCounts.Total;
         }
 
         /*
@@ -92,19 +73,19 @@ module Login {
         constructor(serverData: any, name?: string, host?: string) {
             if (serverData) {
                 //assumming the right object was passed in
-                this.Name = serverData.name;
-                this.Host = serverData.host;
-                this.IsOnline = serverData.isOnline;
+                this.name = serverData.name;
+                this.host = serverData.host;
+                this.isOnline = serverData.isOnline;
 
                 if (serverData.playerCounts) {
-                    this.PlayerCounts.Arthurians = (serverData.playerCounts.arthurians || 0);
-                    this.PlayerCounts.TuathaDeDanann = (serverData.playerCounts.tuathaDeDanann || 0);
-                    this.PlayerCounts.Viking = (serverData.playerCounts.viking || 0);
+                    this.PlayerCounts.arthurians = (serverData.playerCounts.arthurians || 0);
+                    this.PlayerCounts.tuathaDeDanann = (serverData.playerCounts.tuathaDeDanann || 0);
+                    this.PlayerCounts.vikings = (serverData.playerCounts.vikings || 0);
                 }
             }
             else {
-                this.Name = name;
-                this.Host = host;
+                this.name = name;
+                this.host = host;
             }
         }
 
@@ -115,24 +96,26 @@ module Login {
 
             $.ajax({
                 type: 'GET',
-                url: Server.getServerApiUrl(this.Host) + '/game/players',
+                url: server.getServerApiUrl(this.host) + '/game/players',
                 timeout: delay
             }).done((data) => {
-                this.IsOnline = true;
+                this.isOnline = true;
 
-                this.PlayerCounts.Arthurians = (data.arthurians || 0);
-                this.PlayerCounts.TuathaDeDanann = (data.tuathaDeDanann || 0);
-                this.PlayerCounts.Viking = (data.vikings || 0);
+                this.PlayerCounts.arthurians = (data.arthurians || 0);
+                this.PlayerCounts.tuathaDeDanann = (data.tuathaDeDanann || 0);
+                this.PlayerCounts.vikings = (data.vikings || 0);
 
-                if (updateCompleteCallback)
+                if (updateCompleteCallback) {
                     updateCompleteCallback(this, eventData, start);
+                }
                 
             }).fail(() => {
-                    this.IsOnline = false;
+                this.isOnline = false;
 
-                    if (updateCompleteCallback)
-                        updateCompleteCallback(this, eventData, start);
-                });
+                if (updateCompleteCallback) {
+                    updateCompleteCallback(this, eventData, start);
+                }
+            });
         }
 
         private static getServerApiUrl(host: string) {
@@ -141,39 +124,38 @@ module Login {
 
         //Callback sig example: callback(allServers: Array<Server>), the callback function is handed the list of servers
         static GetAllAsync(completeCallback) {
-            var allServers = new Array<Server>();
+            var allServers = new Array<server>();
 
             $.ajax({
                 type: 'GET',
-                url: Server.getServerApiUrl('chat.camelotunchained.com') + '/game/servers',
+                url: server.getServerApiUrl('chat.camelotunchained.com') + '/game/servers',
                 timeout: 6000
             }).done((data) => {
 
-                    var servers = [
-                        { name: 'localhost', host: 'localhost', isOnline: true, playerCounts: { arthurians: 0, tuathaDeDanann: 0, viking: 0, total: 0 } }
-                    ];
+                var servers = [
+                    { name: 'localhost', host: 'localhost', isOnline: true, playerCounts: { arthurians: 0, tuathaDeDanann: 0, vikings: 0, total: 0 } }
+                ];
 
-                    servers = data;
+                servers = data;
 
-                    //alert(data);
-
-                    //I don't quit understand the magic of loading the original list, so I'll loop through turning old servers into the new server type
-                    //maybe someone can figure out how to go directly to a typed array?
-                    servers.forEach((server) => {
-                        allServers.push(new Server(server));
-                    });
+                //I don't quite understand the magic loading the original list, so I'll loop through turning old servers into the new server type
+                //maybe someone can figure out how to go directly to a typed array?
+                servers.forEach((s) => {
+                    allServers.push(new server(s));
+                });
 
                 if (completeCallback)
                     completeCallback(allServers);
 
-            }).fail(Server.GetAllAsync);
-        }
-        
+            }).fail(function(data, textStatus, jqXHR) {
+                    server.GetAllAsync(completeCallback)
+            });
+        } 
     } 
 
-    var availableServers = new Array<Server>();
+    var availableServers = new Array<server>();
 
-    var selectedServer:Server = null;
+    var selectedServer:server = null;
 
     var serverTimeouts = [];
 
@@ -293,10 +275,10 @@ module Login {
 
         showServerSelection();
 
-        Server.GetAllAsync(serversRecieved)
+        server.GetAllAsync(serversRecieved)
     }
 
-    function serversRecieved(allServers: Array<Server>)
+    function serversRecieved(allServers: Array<server>)
     {
         availableServers = allServers;
         updateServerSelection();
@@ -325,15 +307,15 @@ module Login {
     }
 
     function connect(character) {
-        if (_.isUndefined(selectedServer) || !_.isString(selectedServer.Host)) {
+        if (_.isUndefined(selectedServer) || !_.isString(selectedServer.host)) {
             showModal(createErrorModal('No server selected.'));
         } else if (_.isUndefined(character) || !_.isString(character.id)) {
             showModal(createErrorModal('No character selected.'));
         } else {
             if (cu.HasAPI()) {
-                cuAPI.Connect(selectedServer.Host, character.id);
+                cuAPI.Connect(selectedServer.host, character.id);
             } else {
-                showModal(createErrorModal('Connected to: ' + selectedServer.Host + ' - character: ' + character.id));
+                showModal(createErrorModal('Connected to: ' + selectedServer.host + ' - character: ' + character.id));
             }
         }
     }
@@ -347,13 +329,13 @@ module Login {
     }
 
     //TODO remove this from the global scope if posible its in server now
-    function getServerApiUrl(server: Server) {
-        return 'http://' + server.Host + ':8000/api';
+    function getServerApiUrl(server: server) {
+        return 'http://' + server.host + ':8000/api';
     }
 
-    function getSecureServerApiUrl(server: Server) {
-        if (server.Host === 'localhost') return getServerApiUrl(server);
-        return 'https://' + server.Host + ':4443/api';
+    function getSecureServerApiUrl(server: server) {
+        if (server.host === 'localhost') return getServerApiUrl(server);
+        return 'https://' + server.host + ':4443/api';
     }
 
     /* Server Selection Functions */
@@ -412,44 +394,44 @@ module Login {
         return $container;
     }
 
-    function createServerModalRow(server: Server) {
+    function createServerModalRow(server: server) {
         var $row = $('<tr></tr>');
 
         $row[0].onclick = () => trySelectServer(server);
 
-        if (!server.IsOnline) {
+        if (!server.isOnline) {
             $row.addClass('offline');
         }
 
-        $('<td class="name">' + _.escape(server.Name) + '</td>').appendTo($row);
+        $('<td class="name">' + _.escape(server.name) + '</td>').appendTo($row);
 
         var $arthurians = $('<td class="arthurians">?</td>').appendTo($row);
         var $tdd = $('<td class="tdd">?</td>').appendTo($row);
         var $vikings = $('<td class="vikings">?</td>').appendTo($row);
         var $total = $('<td class="online">?</td>').appendTo($row);
 
-        $arthurians.text(server.Arthurians);
-        $tdd.text(server.TuathaDeDanann);
-        $vikings.text(server.Viking);
-        $total.text(server.Total);
+        $arthurians.text(server.arthurians);
+        $tdd.text(server.tuathaDeDanann);
+        $vikings.text(server.vikings);
+        $total.text(server.total);
         
 
         return { $row: $row, $arthurians: $arthurians, $tdd: $tdd, $vikings: $vikings, $total: $total };
     }
 
-    function updateServerEntry(server: Server, row) {
+    function updateServerEntry(server: server, row) {
         server.UpdateAsync(doUpdateServerEntry, row);
     }
 
-    function doUpdateServerEntry(server: Server, row, updateStartTime: Date) {
+    function doUpdateServerEntry(server: server, row, updateStartTime: Date) {
         var delay = 5000;
 
-        if (server.IsOnline) {
+        if (server.isOnline) {
             row.$row.removeClass('offline');
-            row.$arthurians.text(server.Arthurians);
-            row.$tdd.text(server.TuathaDeDanann);
-            row.$vikings.text(server.Viking);
-            row.$total.text(server.Total);
+            row.$arthurians.text(server.arthurians);
+            row.$tdd.text(server.tuathaDeDanann);
+            row.$vikings.text(server.vikings);
+            row.$total.text(server.total);
 
             if (!selectedServer) {
                 var elapsed = new Date().getTime() - updateStartTime.getTime();
@@ -473,12 +455,12 @@ module Login {
         }
     }
 
-    function trySelectServer(server: Server) {
-        if (!server.IsOnline) {
+    function trySelectServer(server: server) {
+        if (!server.isOnline) {
             return;
         }
 
-        var request = serverCharacterRequests[server.Host];
+        var request = serverCharacterRequests[server.host];
 
         if (!request) {
             var $tfoot = $serversModalContainer['$content']['$table']['$tfoot'];
@@ -494,7 +476,7 @@ module Login {
             var attempts = 0;
 
             var loadingInterval = setInterval(() => {
-                request = serverCharacterRequests[server.Host];
+                request = serverCharacterRequests[server.host];
 
                 if (request && request.readyState === 4) {
                 } else if (++attempts > 50) {
@@ -508,14 +490,14 @@ module Login {
 
             var delay = 5000;
 
-            serverCharacterRequests[server.Host] = $.ajax({
+            serverCharacterRequests[server.host] = $.ajax({
                 type: 'GET',
                 url: getSecureServerApiUrl(server) + '/characters?loginToken=' + loginToken,
                 timeout: delay
             }).done((data) => {
-                server.Characters = data;
+                server.characters = data;
 
-                serverCharacterRequests[server.Host] = null;
+                serverCharacterRequests[server.host] = null;
 
                 clearInterval(loadingInterval);
 
@@ -523,7 +505,7 @@ module Login {
 
                 selectServer(server);
             }).fail(() => {
-                serverCharacterRequests[server.Host] = null;
+                serverCharacterRequests[server.host] = null;
 
                 clearInterval(loadingInterval);
 
@@ -532,13 +514,13 @@ module Login {
         }
     }
 
-    function selectServer(server: Server) {
+    function selectServer(server: server) {
         serverTimeouts.forEach(timeout => clearTimeout(timeout));
         serverTimeouts = [];
 
         //selectedServer = servers.filter((s) => {
         selectedServer = availableServers.filter((s) => {
-            return s.Name === server.Name;
+            return s.name === server.name;
         })[0];
 
         if (_.isUndefined(selectedServer)) {
@@ -546,7 +528,7 @@ module Login {
         }
 
         hideModal(() => {
-            if (selectedServer.Characters && selectedServer.Characters.length) {
+            if (selectedServer.characters && selectedServer.characters.length) {
                 showCharacterSelect();
             } else {
                 showCharacterCreationPage();
@@ -575,7 +557,7 @@ module Login {
 
         $selectedCharacter = null;
 
-        selectedServer.Characters.forEach((character, index) => {
+        selectedServer.characters.forEach((character, index) => {
             var raceCssClass;
 
             try {
@@ -599,7 +581,7 @@ module Login {
             }
         });
 
-        if (selectedServer.Characters.length > 1) {
+        if (selectedServer.characters.length > 1) {
             $previousButton.fadeIn();
             $nextButton.fadeIn();
         }
@@ -608,7 +590,7 @@ module Login {
     }
 
     function findRaceCssClass(raceValue) {
-        var race = selectedServer.Races.filter(r => r.value === raceValue)[0];
+        var race = selectedServer.races.filter(r => r.value === raceValue)[0];
         if (!race) {
             throw new Error('Race ' + raceValue + ' does not exist');
         }
@@ -682,7 +664,7 @@ module Login {
 
                 var $previous = getPreviousCharacter();
 
-                selectedServer.Characters.splice($selectedCharacter.index(), 1);
+                selectedServer.characters.splice($selectedCharacter.index(), 1);
 
                 $selectedCharacter.remove();
 
@@ -728,7 +710,7 @@ module Login {
             url: getServerApiUrl(selectedServer) + '/game/races',
             timeout: delay
         }).done((data) => {
-            selectedServer.Races = data;
+            selectedServer.races = data;
 
             serverRacesRequest = null;
 
@@ -751,20 +733,20 @@ module Login {
 
         $characterCreationBottom.fadeOut();
 
-        if (!selectedServer.Races) {
+        if (!selectedServer.races) {
             getRaces(() => selectRealm(realm, true));
             return;
         }
 
         $characterCreationRealms.animate({ 'top': '0%' }, () => {
             $characterCreationRaces.fadeOut().promise().done(() => {
-                var allRaceCssClasses = selectedServer.Races.map(r => getRaceCssClass(r)).join(' ');
+                var allRaceCssClasses = selectedServer.races.map(r => getRaceCssClass(r)).join(' ');
 
                 $characterCreationRaces.removeClass('selected ' + allRaceCssClasses);
 
                 var racesCount = 0;
 
-                selectedServer.Races.forEach(race => {
+                selectedServer.races.forEach(race => {
                     if (race.faction.name === realm) {
                         var raceCssClass = getRaceCssClass(race);
 
