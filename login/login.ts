@@ -43,24 +43,24 @@ module Login {
         //TODO: this needs the same delay load treatment as the characters list..
         races: any = null;
 
-        private PlayerCounts: serverPlayerCounts = new serverPlayerCounts(0, 0, 0);
+        private playerCounts: serverPlayerCounts = new serverPlayerCounts(0, 0, 0);
         
 
         //Wrapping player counts so if the underlying class chages we don't break anyone who ref's then via the server class.
         get arthurians(): number {
-            return this.PlayerCounts.arthurians;
+            return this.playerCounts.arthurians;
         }
 
         get tuathaDeDanann(): number {
-            return this.PlayerCounts.tuathaDeDanann;
+            return this.playerCounts.tuathaDeDanann;
         }
 
         get vikings(): number {
-            return this.PlayerCounts.vikings;
+            return this.playerCounts.vikings;
         }
 
         get total(): number {
-            return this.PlayerCounts.Total;
+            return this.playerCounts.Total;
         }
 
         /*
@@ -78,9 +78,9 @@ module Login {
                 this.isOnline = serverData.isOnline;
 
                 if (serverData.playerCounts) {
-                    this.PlayerCounts.arthurians = (serverData.playerCounts.arthurians || 0);
-                    this.PlayerCounts.tuathaDeDanann = (serverData.playerCounts.tuathaDeDanann || 0);
-                    this.PlayerCounts.vikings = (serverData.playerCounts.vikings || 0);
+                    this.playerCounts.arthurians = (serverData.playerCounts.arthurians || 0);
+                    this.playerCounts.tuathaDeDanann = (serverData.playerCounts.tuathaDeDanann || 0);
+                    this.playerCounts.vikings = (serverData.playerCounts.vikings || 0);
                 }
             }
             else {
@@ -90,7 +90,7 @@ module Login {
         }
 
         //Callback sig example: callback(server: Server, data: any, updateStartTime: Date) where data is the eventData that was passed in
-        UpdateAsync(updateCompleteCallback, eventData) {
+        updateAsync(updateCompleteCallback, eventData) {
             var start = new Date();
             var delay = 5000;
 
@@ -101,9 +101,9 @@ module Login {
             }).done((data) => {
                 this.isOnline = true;
 
-                this.PlayerCounts.arthurians = (data.arthurians || 0);
-                this.PlayerCounts.tuathaDeDanann = (data.tuathaDeDanann || 0);
-                this.PlayerCounts.vikings = (data.vikings || 0);
+                this.playerCounts.arthurians = (data.arthurians || 0);
+                this.playerCounts.tuathaDeDanann = (data.tuathaDeDanann || 0);
+                this.playerCounts.vikings = (data.vikings || 0);
 
                 if (updateCompleteCallback) {
                     updateCompleteCallback(this, eventData, start);
@@ -123,7 +123,7 @@ module Login {
         }
 
         //Callback sig example: callback(allServers: Array<Server>), the callback function is handed the list of servers
-        static GetAllAsync(completeCallback) {
+        static getAllAsync(completeCallback) {
             var allServers = new Array<server>();
 
             $.ajax({
@@ -148,7 +148,7 @@ module Login {
                     completeCallback(allServers);
 
             }).fail(function(data, textStatus, jqXHR) {
-                    server.GetAllAsync(completeCallback)
+                    server.getAllAsync(completeCallback)
             });
         } 
     } 
@@ -275,7 +275,7 @@ module Login {
 
         showServerSelection();
 
-        server.GetAllAsync(serversRecieved)
+        server.getAllAsync(serversRecieved)
     }
 
     function serversRecieved(allServers: Array<server>)
@@ -420,7 +420,7 @@ module Login {
     }
 
     function updateServerEntry(server: server, row) {
-        server.UpdateAsync(doUpdateServerEntry, row);
+        server.updateAsync(doUpdateServerEntry, row);
     }
 
     function doUpdateServerEntry(server: server, row, updateStartTime: Date) {
